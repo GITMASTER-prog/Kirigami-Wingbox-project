@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirigami Wingbox Explorer — Shear-Center Migration, Interactive Demo</title>
+<style>
+  :root{
+    --bg:#0e1320; --panel:#161e30; --panel2:#1b2440; --line:#2a3554;
+    --txt:#e8edf7; --dim:#93a0bd; --acc:#4fd1c5; --acc2:#f6ad55; --good:#68d391; --bad:#fc8181;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--txt);font:14px/1.45 "Segoe UI",system-ui,Arial,sans-serif;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(90deg,#141c33,#0f1526);border-bottom:1px solid var(--line)}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header h1 .sub{color:var(--dim);font-weight:400;font-size:13px;margin-left:8px}
+  header .spacer{flex:1}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer}
+  button:hover{border-color:var(--acc);color:#fff}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#08222b;font-weight:700}
+  button.primary:hover{filter:brightness(1.1);color:#08222b}
+  main{display:grid;grid-template-columns:270px 1fr 300px;gap:10px;padding:10px 12px 0;flex:0 0 auto}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .panel h3{margin:2px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+  /* ---- inputs ---- */
+  .ctl{margin-bottom:9px}
+  .ctl label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim)}
+  .ctl label b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+  .ctl input[type=range]{width:100%;accent-color:var(--acc);margin-top:3px}
+  .ctl.big label b{color:var(--acc);font-size:15px}
+  .ctl.big input[type=range]{height:26px}
+  /* ---- section canvas ---- */
+  #centerPanel{display:flex;flex-direction:column}
+  #cvSection{width:100%;height:430px;display:block;border-radius:8px;background:#0b101d;border:1px solid var(--line)}
+  #legend{display:flex;align-items:center;gap:14px;margin-top:7px;font-size:12px;color:var(--dim);flex-wrap:wrap}
+  #legend .bar{width:120px;height:10px;border-radius:5px;background:linear-gradient(90deg,hsl(240,85%,55%),hsl(180,85%,55%),hsl(120,85%,55%),hsl(60,85%,55%),hsl(0,85%,55%))}
+  .mk{display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-right:4px}
+  /* ---- outputs ---- */
+  .orow{display:flex;align-items:baseline;gap:6px;padding:3.5px 2px;border-bottom:1px dashed #223052;font-variant-numeric:tabular-nums}
+  .orow:last-of-type{border-bottom:none}
+  .orow .lab{flex:1;color:var(--dim);font-size:12.5px}
+  .orow .val{font-weight:600;font-size:13px;white-space:nowrap}
+  .orow .val.hi{color:var(--acc)}
+  .orow .val.hi2{color:var(--acc2)}
+  .orow .info{cursor:pointer;color:#55688f;font-size:11px;border:1px solid #33406a;border-radius:50%;width:15px;height:15px;line-height:13px;text-align:center;flex:0 0 auto}
+  .orow .info:hover{color:var(--acc);border-color:var(--acc)}
+  #explainer{margin-top:9px;background:#101828;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:#c9d6f2;min-height:64px}
+  #explainer b{color:var(--acc)}
+  #eqline{margin-top:8px;font-size:12px;color:var(--good)}
+  /* ---- tabs ---- */
+  nav{display:flex;gap:6px;padding:10px 12px 0}
+  nav button{border-radius:8px 8px 0 0;border-bottom:none;opacity:.65}
+  nav button.on{opacity:1;background:var(--panel);border-color:var(--acc);color:#fff}
+  #tabPane{margin:0 12px 12px;background:var(--panel);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:12px;min-height:280px}
+  .tab{display:none}.tab.on{display:block}
+  .charts{display:flex;gap:14px;flex-wrap:wrap}
+  .charts .chart{flex:1;min-width:320px}
+  .chart canvas{width:100%;height:260px;display:block;background:#0b101d;border:1px solid var(--line);border-radius:8px}
+  .chart h4{margin:0 0 6px;font-size:12.5px;color:var(--dim);font-weight:600}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{color:var(--dim);font-weight:600;border-bottom:1px solid #3a4a78}
+  th:first-child,td:first-child{text-align:left}
+  tr.cur td{background:#1d2c4f;color:#fff}
+  .pass{color:var(--good);font-weight:700}.fail{color:var(--bad);font-weight:700}
+  .note{color:var(--dim);font-size:12px;margin:8px 0 0}
+  .btnrow{margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap}
+  /* ---- guide tab ---- */
+  .guide{max-width:900px;font-size:13.5px}
+  .guide h4{color:var(--acc);margin:16px 0 4px}
+  .guide p{margin:4px 0}
+  .guide li{margin:3px 0}
+  .guide code{background:#0b101d;padding:1px 5px;border-radius:4px;border:1px solid var(--line);font-size:12px}
+  /* ---- tour ---- */
+  #tourWrap{display:none;position:fixed;inset:0;background:rgba(5,8,16,.72);z-index:50;align-items:center;justify-content:center}
+  #tourWrap.on{display:flex}
+  #tourCard{width:min(620px,92vw);background:var(--panel2);border:1px solid var(--acc);border-radius:14px;padding:22px 24px;box-shadow:0 18px 60px rgba(0,0,0,.6)}
+  #tourCard h3{margin:0 0 10px;color:var(--acc);font-size:17px}
+  #tourCard .body{font-size:14px;color:#dce5f7;min-height:120px}
+  #tourCard .body p{margin:6px 0}
+  #tourCard .body .formula{background:#0b101d;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;font-family:Consolas,monospace;color:#ffd9a0;font-size:13.5px;text-align:center}
+  #tourNav{display:flex;gap:8px;margin-top:16px;align-items:center}
+  #tourStep{color:var(--dim);font-size:12px;margin-left:auto}
+  footer{padding:6px 16px 10px;color:#5b6c8f;font-size:11.5px}
+  @media (max-width:1100px){ main{grid-template-columns:1fr 1fr} #centerPanel{grid-column:1/-1;order:-1} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kirigami Wingbox Explorer<span class="sub">shear-center migration · interactive demo · no MATLAB needed</span></h1>
+  <div class="spacer"></div>
+  <button class="primary" id="btnPlay">▶ Deploy animation</button>
+  <button id="btnTour">🎬 Guided tour</button>
+  <button id="btnReset">↺ Reset</button>
+</header>
+
+<main>
+  <!-- ================= INPUTS ================= -->
+  <aside class="panel">
+    <h3>Inputs — drag &amp; watch</h3>
+    <div class="ctl big">
+      <label>Morphing angle θ <b><span id="v_theta">45</span>°</b></label>
+      <input type="range" id="in_theta" min="0" max="90" step="0.5" value="45">
+    </div>
+    <div class="ctl">
+      <label>Number of cells N <b id="v_n">4</b></label>
+      <input type="range" id="in_n" min="1" max="8" step="1" value="4">
+    </div>
+    <div class="ctl">
+      <label>Seam position γ <b id="v_gam">0.40</b></label>
+      <input type="range" id="in_gam" min="0.25" max="0.75" step="0.01" value="0.40">
+    </div>
+    <div class="ctl">
+      <label>Chord c <b><span id="v_c">0.30</span> m</b></label>
+      <input type="range" id="in_c" min="0.15" max="0.60" step="0.01" value="0.30">
+    </div>
+    <div class="ctl">
+      <label>Height h <b><span id="v_h">0.08</span> m</b></label>
+      <input type="range" id="in_h" min="0.04" max="0.16" step="0.005" value="0.08">
+    </div>
+    <div class="ctl">
+      <label>Top skin t<sub>up</sub> <b><span id="v_tu">1.0</span> mm</b></label>
+      <input type="range" id="in_tu" min="0.5" max="3" step="0.1" value="1.0">
+    </div>
+    <div class="ctl">
+      <label>Bottom skin t<sub>lo</sub> <b><span id="v_tl">1.0</span> mm</b></label>
+      <input type="range" id="in_tl" min="0.5" max="3" step="0.1" value="1.0">
+    </div>
+    <div class="ctl">
+      <label>Webs t<sub>web</sub> <b><span id="v_tw">1.2</span> mm</b></label>
+      <input type="range" id="in_tw" min="0.5" max="3" step="0.1" value="1.2">
+    </div>
+    <div class="ctl">
+      <label>Shear force V<sub>y</sub> <b><span id="v_Vy">1000</span> N</b></label>
+      <input type="range" id="in_Vy" min="100" max="5000" step="100" value="1000">
+    </div>
+    <div class="ctl">
+      <label>Load line x<sub>load</sub> <b><span id="v_xl">0.30</span> m</b></label>
+      <input type="range" id="in_xl" min="0" max="0.7" step="0.005" value="0.30">
+    </div>
+    <div class="note">All units SI. Material: aluminium 2024-T3 (E = 72 GPa, G = 27 GPa) — same defaults as <code>default_params.m</code>.</div>
+  </aside>
+
+  <!-- ================= SECTION DRAWING ================= -->
+  <section class="panel" id="centerPanel">
+    <h3>Cross-section — colour = shear flow q(s), live</h3>
+    <canvas id="cvSection"></canvas>
+    <div id="legend">
+      <span class="bar"></span><span>q: 0 → q<sub>max</sub></span>
+      <span><span class="mk" style="background:#fff"></span>+ centroid</span>
+      <span><span class="mk" style="background:#68d391;transform:rotate(45deg) scale(.8)"></span>◆ shear centre</span>
+      <span><span class="mk" style="background:#4fa3ff;border-radius:2px"></span>→ applied load line</span>
+      <span><span class="mk" style="background:#f6ad55;border-radius:50%"></span>seam hinge</span>
+    </div>
+  </section>
+
+  <!-- ================= OUTPUTS ================= -->
+  <aside class="panel">
+    <h3>Outputs at current θ — click ⓘ for meaning</h3>
+    <div id="outputs"></div>
+    <div id="explainer"><b>Tip:</b> click any ⓘ on the left to see what that number means, in plain words.</div>
+    <div id="eqline"></div>
+  </aside>
+</main>
+
+<!-- ================= TABS ================= -->
+<nav>
+  <button data-tab="mig" class="on">📈 SC migration</button>
+  <button data-tab="tbl">📋 Results table</button>
+  <button data-tab="test">✅ Self-test</button>
+  <button data-tab="gd">📖 Guide</button>
+</nav>
+<div id="tabPane">
+  <div class="tab on" id="tab-mig">
+    <div class="charts">
+      <div class="chart"><h4>Shear-centre migration: x<sub>SC</sub>(θ) vs centroid x̄(θ) [mm]</h4><canvas id="cvMig"></canvas></div>
+      <div class="chart"><h4>Bending–torsion coupling: torque T = V·e and twist θ<sub>t</sub> = T/K<sub>t</sub></h4><canvas id="cvCouple"></canvas></div>
+    </div>
+    <p class="note">These curves are the same data as MATLAB Figures 9 &amp; 11 (<code>visualization.m</code>). The vertical line marks the current θ. <b>Migration</b> = the gap between the cyan (SC) and grey dashed (centroid) curves.</p>
+  </div>
+  <div class="tab" id="tab-tbl">
+    <div class="btnrow"><button id="btnCsv">⬇ Download CSV (SI units)</button></div>
+    <div id="tblWrap" style="overflow:auto;max-height:340px"></div>
+    <p class="note">Same columns as the MATLAB results table <code>T</code> from <code>morphing_simulation.m</code> (θ-step 15°), shown in readable units. The current θ row is highlighted.</p>
+  </div>
+  <div class="tab" id="tab-test">
+    <div class="btnrow"><button class="primary" id="btnSelfTest">▶ Run self-test again</button><span id="stSummary" style="align-self:center"></span></div>
+    <div id="stWrap"></div>
+    <p class="note">These are the <b>same six analytic checks</b> as MATLAB <code>self_test.m</code> (documented in MODEL_MATH.md §8), re-run on this page's JavaScript solver. All green ⇒ the browser demo and the MATLAB code agree with textbook closed-form answers to ≤ 1e-9.</p>
+  </div>
+  <div class="tab" id="tab-gd"><div class="guide" id="guideContent"></div></div>
+</div>
+
+<!-- ================= TOUR ================= -->
+<div id="tourWrap"><div id="tourCard">
+  <h3 id="tourTitle"></h3>
+  <div class="body" id="tourBody"></div>
+  <div id="tourNav">
+    <button id="tourBack">← Back</button>
+    <button class="primary" id="tourNext">Next →</button>
+    <button id="tourClose">Skip tour</button>
+    <span id="tourStep"></span>
+  </div>
+</div></div>
+
+<footer>Kirigami Wingbox Explorer — a 1:1 JavaScript port of the MATLAB solver (<code>kirigami_geometry / section_properties / shear_flow / shear_center / bredt_torsion</code>). Full written walkthrough: <b>GUIDE.md</b>. Report pipeline: run <code>main</code> in MATLAB.</footer>
+
+<script>
+"use strict";
+/* ==========================================================================
+   SOLVER — 1:1 port of the MATLAB files (indices shifted to 0-based).
+   Markers below let external test scripts extract this block unchanged.
+   ========================================================================== */
+/*__SOLVER_START__*/
+const DEFAULTS = {
+  chord: 0.30, height: 0.08, n_cells: 4, seam_pos: 0.40,
+  t_up: 1.0e-3, t_lo: 1.0e-3, t_web: 1.2e-3,
+  E: 72e9, G: 27e9, nu: 0.33,
+  Vy: 1000, Vx: 0, load_x: 0.30, L_ref: 0.50
+};
+
+/* kirigami_geometry.m — parametric cross-section for morphing angle θ.
+   Returns {E:[x1,y1,x2,y2,t] walls, C:[n1,n2] tree connectivity,
+            loops:[{elems,signs,poly}], nodes, theta, seamLift} */
+function kirigamiGeometry(P, thetaDeg, slitSide) {
+  if (slitSide === undefined) slitSide = 'right';
+  const c = P.chord, h = P.height, N = P.n_cells, gam = P.seam_pos;
+  const dc = c / N;
+  const Delta = dc * Math.sin(thetaDeg * Math.PI / 180);
+  const xs = []; for (let i = 0; i <= N; i++) xs.push(i * dc);
+  // nodes: bottom 0..N, tops N+1..2N+1, seams 2N+2..3N+1, slit dups 3N+2..4N+1
+  const nodes = [];
+  for (let i = 0; i <= N; i++) nodes.push([xs[i], 0]);
+  for (let i = 0; i <= N; i++) nodes.push([xs[i], h]);
+  for (let i = 0; i < N;  i++) nodes.push([xs[i] + gam * dc, h + Delta]);
+  const bot  = i => i - 1, top  = i => N + i,
+        seam = i => 2*N + 1 + i, slit = i => 3*N + 1 + i;
+  if (slitSide === 'right') for (let i = 0; i < N; i++) nodes.push([xs[i+1], h]);
+  else                      for (let i = 0; i < N; i++) nodes.push([xs[i],   h]);
+  const E = [], C = [], e_bot = [], e_web = [], e_left = [], e_right = [];
+  for (let i = 1; i <= N; i++) {                       // bottom skin panels
+    e_bot[i] = E.length;
+    E.push([xs[i-1], 0, xs[i], 0, P.t_lo]);  C.push([bot(i), bot(i+1)]);
+  }
+  for (let i = 1; i <= N+1; i++) {                     // webs
+    e_web[i] = E.length;
+    E.push([xs[i-1], 0, xs[i-1], h, P.t_web]); C.push([bot(i), top(i)]);
+  }
+  for (let i = 1; i <= N; i++) {                       // top skin, left panels
+    e_left[i] = E.length;
+    E.push([xs[i-1], h, xs[i-1] + gam*dc, h + Delta, P.t_up]);
+    C.push(slitSide === 'right' ? [top(i), seam(i)] : [slit(i), seam(i)]);
+  }
+  for (let i = 1; i <= N; i++) {                       // top skin, right panels
+    e_right[i] = E.length;
+    E.push([xs[i-1] + gam*dc, h + Delta, xs[i], h, P.t_up]);
+    C.push(slitSide === 'right' ? [seam(i), slit(i)] : [seam(i), top(i+1)]);
+  }
+  const loops = [];
+  for (let i = 1; i <= N; i++) {
+    loops.push({
+      elems: [e_bot[i], e_web[i+1], e_right[i], e_left[i], e_web[i]],
+      signs: [1, 1, -1, -1, -1],
+      poly:  [[xs[i-1], 0], [xs[i], 0], [xs[i], h],
+              [xs[i-1] + gam*dc, h + Delta], [xs[i-1], h]]
+    });
+  }
+  return { E, C, loops, nodes, theta: thetaDeg, seamLift: Delta };
+}
+
+/* section_properties.m — A, centroid, Ix, Iy, Ixy (exact thin-strip integrals) */
+function sectionProperties(E) {
+  const n = E.length, L = [], xm = [], ym = [];
+  let A = 0, Qx = 0, Qy = 0;
+  for (let e = 0; e < n; e++) {
+    const [x1, y1, x2, y2, t] = E[e];
+    L[e] = Math.hypot(x2 - x1, y2 - y1);
+    xm[e] = (x1 + x2) / 2;  ym[e] = (y1 + y2) / 2;
+    A  += t * L[e];
+    Qx += t * L[e] * ym[e];
+    Qy += t * L[e] * xm[e];
+  }
+  const xbar = Qy / A, ybar = Qx / A;
+  let Ix = 0, Iy = 0, Ixy = 0;
+  for (let e = 0; e < n; e++) {
+    const [x1, y1, x2, y2, t] = E[e];
+    const dx = x2 - x1, dy = y2 - y1;
+    Ix  += t*L[e] * ((ym[e]-ybar)**2 + dy*dy/12);
+    Iy  += t*L[e] * ((xm[e]-xbar)**2 + dx*dx/12);
+    Ixy += t*L[e] * ((xm[e]-xbar)*(ym[e]-ybar) + dx*dy/12);
+  }
+  return { A, xbar, ybar, Ix, Iy, Ixy };
+}
+
+/* solve small dense linear system (Gaussian elimination, partial pivoting) */
+function solveLin(A, b) {
+  const n = A.length, M = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < n; col++) {
+    let piv = col;
+    for (let r = col+1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+    [M[col], M[piv]] = [M[piv], M[col]];
+    const d = M[col][col];
+    if (Math.abs(d) < 1e-300) throw new Error('singular system');
+    for (let r = col+1; r < n; r++) {
+      const f = M[r][col] / d;
+      if (f !== 0) for (let k = col; k <= n; k++) M[r][k] -= f * M[col][k];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let r = n-1; r >= 0; r--) {
+    let s = M[r][n];
+    for (let k = r+1; k < n; k++) s -= M[r][k] * x[k];
+    x[r] = s / M[r][r];
+  }
+  return x;
+}
+
+/* shear_flow.m — multi-cell shear flow q(s) by slit + tree walk + loop solve.
+   Returns {q1,q2 [N/m at stored nodes], Iq [∫q ds, stored dir], q0, Fx, Fy, a, b} */
+function shearFlow(G, SP, Vy, Vx) {
+  const E = G.E, C = G.C, n = E.length, nodes = G.nodes;
+  const t = E.map(r => r[4]);
+  const L = E.map(r => Math.hypot(r[2]-r[0], r[3]-r[1]));
+  const Delta0 = SP.Ix*SP.Iy - SP.Ixy*SP.Ixy;
+  // Correct unsymmetric-bending coefficients (verified by truth-solve + self-test):
+  // q_open = a*Qx(s) - b*Qy(s),  Qx = INT(y-ybar)t ds, Qy = INT(x-xbar)t ds.
+  // NOTE the Ixy cross-terms carry MINUS signs here; the earlier + signs made
+  // the flow violate equilibrium whenever Ixy != 0 (self-test check 2).
+  const a = -(Vy*SP.Iy - Vx*SP.Ixy) / Delta0;
+  const b =  (Vx*SP.Ix - Vy*SP.Ixy) / Delta0;
+  // 1. adjacency of the slit (tree) graph
+  let maxNode = 0; for (const p of C) maxNode = Math.max(maxNode, p[0], p[1]);
+  const adj = Array.from({length: maxNode+1}, () => []);
+  for (let e = 0; e < n; e++) { adj[C[e][0]].push(e); adj[C[e][1]].push(e); }
+  // 2. root the tree at a free end (degree-1 node), BFS ordering
+  let rootNode = -1;
+  for (let nd = 0; nd <= maxNode; nd++) if (adj[nd].length === 1) { rootNode = nd; break; }
+  if (rootNode < 0) throw new Error('no free edge - slit the section');
+  const near = new Array(n).fill(-1), parent = new Array(n).fill(-1),
+        order = new Array(n).fill(-1), visited = new Array(n).fill(false);
+  let startElem = adj[rootNode][0];
+  near[startElem] = rootNode; visited[startElem] = true;
+  let head = 0, tail = 0; order[tail++] = startElem;
+  while (head < tail) {
+    const e = order[head++];
+    let far = C[e][1]; if (near[e] === C[e][1]) far = C[e][0];
+    for (const f of adj[far]) if (!visited[f]) {
+      visited[f] = true; parent[f] = e; near[f] = far; order[tail++] = f;
+    }
+  }
+  if (tail !== n) throw new Error('slit section is not a tree');
+  // 3. post-order accumulation of centroidal first moments + exact ∫q ds
+  const QxF = new Array(n).fill(0), QyF = new Array(n).fill(0);
+  const qFv = new Array(n), qNv = new Array(n), IqOpen = new Array(n);
+  for (let ii = n-1; ii >= 0; ii--) {
+    const e = order[ii], fx = QxF[e], fy = QyF[e];
+    let far = C[e][1]; if (near[e] === C[e][1]) far = C[e][0];
+    const xF = nodes[far][0],   yF = nodes[far][1];
+    const xN = nodes[near[e]][0], yN = nodes[near[e]][1];
+    const Le = L[e], te = t[e];
+    const tx = (xN-xF)/Le, ty = (yN-yF)/Le;
+    const dQx = te*Le*((yF+yN)/2 - SP.ybar);
+    const dQy = te*Le*((xF+xN)/2 - SP.xbar);
+    const QxN = fx + dQx, QyN = fy + dQy;
+    qFv[e] = a*fx - b*fy;
+    qNv[e] = a*QxN - b*QyN;
+    IqOpen[e] = a*( fx*Le + te*((yF-SP.ybar)*Le*Le/2 + ty*Le*Le*Le/6) )
+              - b*( fy*Le + te*((xF-SP.xbar)*Le*Le/2 + tx*Le*Le*Le/6) );
+    const p = parent[e];
+    if (p !== -1) { QxF[p] += QxN; QyF[p] += QyN; }
+  }
+  // open-section integrals re-expressed in the stored n1→n2 direction
+  const IqOpenS = new Array(n);
+  for (let e = 0; e < n; e++) {
+    let far = C[e][1]; if (near[e] === C[e][1]) far = C[e][0];
+    IqOpenS[e] = (C[e][0] === far ? 1 : -1) * IqOpen[e];
+  }
+  // 4. one zero-twist compatibility equation per cell:  A·q0 = bvec
+  const ncells = G.loops.length;
+  const cellOf = Array.from({length: n}, () => []);
+  for (let k = 0; k < ncells; k++)
+    for (let j = 0; j < G.loops[k].elems.length; j++)
+      cellOf[G.loops[k].elems[j]].push([k, G.loops[k].signs[j]]);
+  let q0 = [];
+  if (ncells > 0) {
+    const Am = Array.from({length: ncells}, () => new Array(ncells).fill(0));
+    const bv = new Array(ncells).fill(0);
+    for (let k = 0; k < ncells; k++) {
+      const lp = G.loops[k];
+      for (let j = 0; j < lp.elems.length; j++) {
+        const e = lp.elems[j], sg = lp.signs[j];
+        bv[k] -= sg * IqOpenS[e] / t[e];
+        for (const [m, sm] of cellOf[e]) Am[k][m] += sg*sm*L[e]/t[e];
+      }
+    }
+    q0 = solveLin(Am, bv);
+  }
+  // 5. superposition → final q in stored direction + resultant check
+  const q1 = new Array(n), q2 = new Array(n), Iq = new Array(n);
+  for (let e = 0; e < n; e++) {
+    let far = C[e][1]; if (near[e] === C[e][1]) far = C[e][0];
+    const dirSgn = (C[e][0] === far) ? 1 : -1;
+    let add = 0;
+    for (const [m, sm] of cellOf[e]) add += sm * q0[m];
+    const qF = dirSgn*qFv[e] + add, qN = dirSgn*qNv[e] + add;
+    if (C[e][0] === far) { q1[e] = qF; q2[e] = qN; }
+    else                 { q1[e] = qN; q2[e] = qF; }
+    Iq[e] = dirSgn*IqOpen[e] + add*L[e];
+  }
+  let Fx = 0, Fy = 0;
+  for (let e = 0; e < n; e++) {
+    const tx = (E[e][2]-E[e][0])/L[e], ty = (E[e][3]-E[e][1])/L[e];
+    Fx += Iq[e]*tx;  Fy += Iq[e]*ty;
+  }
+  return { q1, q2, Iq, q0, Fx, Fy, a, b };
+}
+
+/* shear_center.m — SC from the zero-twist condition, two unit load cases */
+function shearCenter(G, SP, V) {
+  const outY = shearFlow(G, SP, V, 0);
+  const outX = shearFlow(G, SP, 0, V);
+  let M_y0 = 0, M_x0 = 0;
+  for (let e = 0; e < G.E.length; e++) {
+    const [x1, y1, x2, y2] = G.E[e];
+    const L = Math.hypot(x2-x1, y2-y1);
+    const tx = (x2-x1)/L, ty = (y2-y1)/L;
+    const r1 = (x1-SP.xbar)*ty - (y1-SP.ybar)*tx;   // (r × t̂)_z, constant per wall
+    M_y0 += outY.Iq[e] * r1;
+    M_x0 += outX.Iq[e] * r1;
+  }
+  const ex = M_y0 / V, ey = -M_x0 / V;
+  return { ex, ey, x: SP.xbar + ex, y: SP.ybar + ey, M_y0, M_x0 };
+}
+
+/* bredt_torsion.m — multi-cell Bredt–Batho for unit torque */
+function bredtTorsion(G, SP, P) {
+  const E = G.E, ncells = G.loops.length;
+  const L = E.map(r => Math.hypot(r[2]-r[0], r[3]-r[1]));
+  const t = E.map(r => r[4]);
+  const shoelace = poly => {
+    let s = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, y1] = poly[i], [x2, y2] = poly[(i+1) % poly.length];
+      s += x1*y2 - x2*y1;
+    }
+    return 0.5 * Math.abs(s);
+  };
+  const A0 = G.loops.map(lp => shoelace(lp.poly));
+  const cellOf = Array.from({length: E.length}, () => []);
+  for (let k = 0; k < ncells; k++)
+    for (let j = 0; j < G.loops[k].elems.length; j++)
+      cellOf[G.loops[k].elems[j]].push([k, G.loops[k].signs[j]]);
+  const S = ncells + 1;
+  const Am = Array.from({length: S}, () => new Array(S).fill(0));
+  const bv = new Array(S).fill(0);
+  for (let k = 0; k < ncells; k++) {
+    const lp = G.loops[k];
+    for (let j = 0; j < lp.elems.length; j++) {
+      const e = lp.elems[j], sg = lp.signs[j];
+      for (const [m, sm] of cellOf[e]) Am[k][m] += sg*sm*L[e]/t[e];
+    }
+    Am[k][ncells] = -2*A0[k]*P.G;      // twist-rate coupling
+    Am[ncells][k] =  2*A0[k];          // T = 2·Σ q0·A0
+  }
+  bv[ncells] = 1;                      // unit torque T = 1 N·m
+  const sol = solveLin(Am, bv);
+  const q0 = sol.slice(0, ncells), thp = sol[ncells];
+  const J  = 1 / (P.G * thp);          // [m^4]
+  const Kt = P.G * J / P.L_ref;        // [N·m/rad]
+  let Tcheck = 0; for (let k = 0; k < ncells; k++) Tcheck += q0[k]*A0[k];
+  Tcheck *= 2;
+  return { J, Kt, q0, thp, A0, Tcheck };
+}
+
+/* full analysis at one θ (geometry → properties → SC → torsion → coupling) */
+function analyze(P, thetaDeg) {
+  const G = kirigamiGeometry(P, thetaDeg);
+  const SP = sectionProperties(G.E);
+  const V = Math.abs(P.Vy) + Math.abs(P.Vx) + 1e-12;
+  const SC = shearCenter(G, SP, V);
+  const sh = shearFlow(G, SP, P.Vy, P.Vx);
+  const br = bredtTorsion(G, SP, P);
+  const e_load = P.load_x - SC.x;          // signed eccentricity [m]
+  const Torque = P.Vy * e_load;            // T = V·e [N·m]
+  const twist = Torque / br.Kt;            // [rad]
+  let qmax = 0;
+  for (let e = 0; e < sh.q1.length; e++) qmax = Math.max(qmax, Math.abs(sh.q1[e]), Math.abs(sh.q2[e]));
+  return { G, SP, SC, sh, br, e_load, Torque, twist, qmax };
+}
+/*__SOLVER_END__*/
+
+/* ---------------- self-test: same 6 checks as self_test.m ---------------- */
+function selfTest() {
+  const results = [];
+  const chk = (name, err, tol) => results.push({ name, err, tol, pass: err < tol });
+  const P = { ...DEFAULTS };
+  const c = P.chord, h = P.height, N = P.n_cells;
+  // 1. θ=0 closed rectangular box vs closed forms
+  let G = kirigamiGeometry(P, 0), SP = sectionProperties(G.E);
+  const A_cf  = c*P.t_lo + c*P.t_up + (N+1)*h*P.t_web;
+  const Ix_cf = 2*(c*P.t_up)*(h/2)**2 + (N+1)*P.t_web*h**3/12;
+  chk('A vs closed form',            Math.abs(SP.A - A_cf)/A_cf,  1e-12);
+  chk('ȳ vs h/2',                    Math.abs(SP.ybar - h/2),     1e-12);
+  chk('Ix vs closed form',           Math.abs(SP.Ix - Ix_cf)/Ix_cf, 1e-12);
+  chk('Ixy vs 0 (symmetric)',        Math.abs(SP.Ixy),            1e-15);
+  chk('x̄ vs c/2 (symmetric)',        Math.abs(SP.xbar - c/2),     1e-12);
+  // 2. equilibrium: flow resultant == applied force, both load directions
+  for (const th of [0, 60]) {
+    const g = kirigamiGeometry(P, th), s = sectionProperties(g.E);
+    const sh = shearFlow(g, s, 1000, 0);
+    chk(`Fy = Vy at θ=${th}°`, Math.abs(sh.Fy - 1000)/1000, 1e-9);
+    chk(`Fx = 0  at θ=${th}°`, Math.abs(sh.Fx)/1000,        1e-9);
+    const sx = shearFlow(g, s, 0, 1000);
+    chk(`Fx = Vx at θ=${th}°`, Math.abs(sx.Fx - 1000)/1000, 1e-9);
+    chk(`Fy = 0  at θ=${th}°`, Math.abs(sx.Fy)/1000,        1e-9);
+  }
+  // 3. symmetric box: SC == centroid
+  G = kirigamiGeometry(P, 0); SP = sectionProperties(G.E);
+  const sc = shearCenter(G, SP, 1000);
+  chk('ex (symmetric box)', Math.abs(sc.ex), 1e-9);
+  chk('ey (symmetric box)', Math.abs(sc.ey), 1e-9);
+  // 4. C-channel: textbook e = b²h²t/(4Ix)
+  const hb = 0.10, bb = 0.06, tc = 1.2e-3;
+  const E2 = [[0,-hb/2,0,hb/2,tc],[0,hb/2,bb,hb/2,tc],[0,-hb/2,bb,-hb/2,tc]];
+  const G2 = { E: E2, C: [[0,1],[1,2],[0,3]],
+               nodes: [[0,-hb/2],[0,hb/2],[bb,hb/2],[bb,-hb/2]], loops: [] };
+  const SP2 = sectionProperties(E2);
+  const Ix2  = tc*hb**3/12 + 2*tc*bb*(hb/2)**2;
+  const e_cf = bb*bb*hb*hb*tc / (4*Ix2);
+  const oy = shearFlow(G2, SP2, 1000, 0), ox = shearFlow(G2, SP2, 0, 1000);
+  let M_y0 = 0, M_x0 = 0;
+  for (let e = 0; e < 3; e++) {
+    const L = Math.hypot(E2[e][2]-E2[e][0], E2[e][3]-E2[e][1]);
+    const tx = (E2[e][2]-E2[e][0])/L, ty = (E2[e][3]-E2[e][1])/L;
+    const r1 = (E2[e][0]-SP2.xbar)*ty - (E2[e][1]-SP2.ybar)*tx;
+    M_y0 += oy.Iq[e]*r1;  M_x0 += ox.Iq[e]*r1;
+  }
+  const x_SC2 = SP2.xbar + M_y0/1000, ey2 = -M_x0/1000;
+  chk('C-channel Ix',            Math.abs(SP2.Ix - Ix2)/Ix2, 1e-12);
+  chk('C-channel SC x = −e',     Math.abs(x_SC2 - (-e_cf))/e_cf, 1e-10);
+  chk('C-channel SC y = 0',      Math.abs(ey2),              1e-10);
+  // 5. single-cell Bredt: J = 4A0²/∮ds/t, q0 = T/(2A0)
+  const P1 = { ...P, n_cells: 1 };
+  const g1 = kirigamiGeometry(P1, 0), s1 = sectionProperties(g1.E);
+  const br = bredtTorsion(g1, s1, P1);
+  const A0c = c*h, dst = 2*c/P1.t_up + 2*h/P1.t_web, J_cf = 4*A0c*A0c/dst;
+  chk('Bredt J = 4A0²/∮ds/t', Math.abs(br.J - J_cf)/J_cf, 1e-10);
+  chk('Bredt q0 = T/(2A0)',   Math.abs(br.q0[0] - 1/(2*A0c)), 1e-9);
+  // 6. cut-independence: right slit vs left slit
+  const Ga = kirigamiGeometry(P, 60, 'right'), Gb = kirigamiGeometry(P, 60, 'left');
+  const Sa = shearFlow(Ga, sectionProperties(Ga.E), 1000, 0);
+  const Sb = shearFlow(Gb, sectionProperties(Gb.E), 1000, 0);
+  let qmax = 0, d1 = 0, d2 = 0;
+  for (let e = 0; e < Sa.q1.length; e++) {
+    qmax = Math.max(qmax, Math.abs(Sa.q1[e]));
+    d1 = Math.max(d1, Math.abs(Sa.q1[e]-Sb.q1[e]));
+    d2 = Math.max(d2, Math.abs(Sa.q2[e]-Sb.q2[e]));
+  }
+  chk('q1 slit right == slit left', d1/qmax, 1e-9);
+  chk('q2 slit right == slit left', d2/qmax, 1e-9);
+  return results;
+}
+
+/* ==========================================================================
+   UI STATE + WIRING
+   ========================================================================== */
+const state = { P: { ...DEFAULTS }, theta: 45, playing: false, sweep: null, hl: null };
+
+const $ = id => document.getElementById(id);
+const mm  = x => x*1e3, cm2 = x => x*1e4, cm4 = x => x*1e8;
+
+const OUTPUTS = [
+  ['theta', 'θ morphing angle',   v => v.toFixed(1) + ' °',                       'hi',
+   'How far the kirigami skin has deployed: 0° = closed box, 90° = fully deployed. The seam lift is Δ = dc·sin(θ).'],
+  ['delta', 'Seam lift Δ',        v => (v*1e3).toFixed(2) + ' mm',                '',
+   'How high each top-skin seam has lifted. Δ = (c/N)·sin(θ). This single number drives the whole geometry change.'],
+  ['A',     'Area A',             v => (cm2(v)).toFixed(3) + ' cm²',              '',
+   'Total material area of the thin-walled section (Σ t·L per wall). It barely changes while morphing.'],
+  ['xbar',  'Centroid x̄',         v => (v*1e3).toFixed(2) + ' mm',                '',
+   'The "balance point" of the material, measured along the chord. Watch it drift as the seams deploy.'],
+  ['ybar',  'Centroid ȳ',         v => (v*1e3).toFixed(2) + ' mm',                '',
+   'Balance point height above the bottom skin. It rides up because the seams lift material upward.'],
+  ['Ix',    'Iₓ (bending about x)',v => (cm4(v)).toFixed(4) + ' cm⁴',             '',
+   'Bending stiffness about the horizontal axis — resists the wing bending upward. Drops slightly as seams lift.'],
+  ['Iy',    'I_y (bending about y)',v => (cm4(v)).toFixed(4) + ' cm⁴',            '',
+   'Bending stiffness about the vertical (chordwise) axis.'],
+  ['Ixy',   'Ixy (coupling term)', v => (cm4(v)).toFixed(4) + ' cm⁴',             'hi2',
+   'Product of inertia — zero only for symmetric sections. γ ≠ 0.5 makes it non-zero, which is what unsymmetric-bending theory needs and part of why the SC moves.'],
+  ['xSC',   'Shear centre x_SC',  v => (v*1e3).toFixed(2) + ' mm',                'hi',
+   'THE key number. The point where the resultant shear force must act so the section twists by zero. It migrates as θ grows.'],
+  ['ySC',   'Shear centre y_SC',  v => (v*1e3).toFixed(2) + ' mm',                '',
+   'Height of the shear centre above the bottom skin.'],
+  ['ex',    'Eccentricity e = x_load − x_SC', v => (v*1e3).toFixed(2) + ' mm',   'hi2',
+   'Horizontal distance between the applied load line (blue arrow) and the shear centre. Non-zero e ⇒ the load also TORQUES the section.'],
+  ['T',     'Torque T = Vy·e',    v => v.toFixed(2) + ' N·m',                     'hi2',
+   'Torsional moment created because the load misses the shear centre. T = V·e — the bending–torsion coupling the project studies.'],
+  ['Kt',    'Torsional stiffness Kₜ', v => v.toExponential(3) + ' N·m/rad',       '',
+   'How much torque is needed per radian of twist (Bredt multi-cell, Kt = G·J/L_ref). Changes with the morphing state.'],
+  ['twist', 'Twist θₜ = T/Kₜ',    v => (v*180/Math.PI).toFixed(3) + ' °',         'hi',
+   'Estimated twist of a 0.5 m reference length of the wingbox (uniform-torsion estimate, no warping).'],
+  ['qmax',  'Peak flow q_max',    v => v.toFixed(0) + ' N/m',                     '',
+   'Largest shear flow in any wall — the reddest colour on the drawing. Design-relevant: skins must carry this.']
+];
+
+function buildOutputs() {
+  const host = $('outputs');
+  host.innerHTML = '';
+  for (const [id, lab, , cls, expl] of OUTPUTS) {
+    const row = document.createElement('div');
+    row.className = 'orow';
+    row.innerHTML = `<span class="lab">${lab}</span><span class="val ${cls}" id="o_${id}">–</span><span class="info" data-k="${id}">i</span>`;
+    host.appendChild(row);
+  }
+  host.addEventListener('click', ev => {
+    const k = ev.target?.dataset?.k;
+    if (!k) return;
+    const item = OUTPUTS.find(o => o[0] === k);
+    $('explainer').innerHTML = `<b>${item[1]}.</b> ${item[4]}`;
+  });
+}
+
+function refreshOutputs(R) {
+  const vals = {
+    theta: state.theta, delta: R.G.seamLift, A: R.SP.A,
+    xbar: R.SP.xbar, ybar: R.SP.ybar, Ix: R.SP.Ix, Iy: R.SP.Iy, Ixy: R.SP.Ixy,
+    xSC: R.SC.x, ySC: R.SC.y, ex: R.e_load, T: R.Torque, Kt: R.br.Kt,
+    twist: R.twist, qmax: R.qmax
+  };
+  for (const [id, lab, fmt] of OUTPUTS) $('o_' + id).textContent = fmt(vals[id]);
+  $('eqline').textContent =
+    `✔ equilibrium check: flow resultant = (${R.sh.Fx.toExponential(2)}, ${R.sh.Fy.toFixed(4)}) N  vs applied (0, ${state.P.Vy}) N — residual ${Math.abs(R.sh.Fy - state.P.Vy).toExponential(1)} N`;
+}
+
+/* ---------------- cross-section drawing ---------------- */
+const cvS = $('cvSection');
+function flowColor(v) {
+  const hue = 240 * (1 - Math.min(1, Math.max(0, v)));
+  return `hsl(${hue}, 85%, 55%)`;
+}
+function drawSection(R) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cvS.clientWidth, H = cvS.clientHeight;
+  cvS.width = W*dpr; cvS.height = H*dpr;
+  const ctx = cvS.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const P = state.P;
+  const xs = R.G.nodes.map(nd => nd[0]), ys = R.G.nodes.map(nd => nd[1]);
+  const arrowPad = 0.30*Math.max(P.height + R.G.seamLift, 0.05);
+  const x0 = Math.min(0, P.load_x - 0.01), x1 = Math.max(P.chord, P.load_x + 0.01);
+  const y1 = Math.max(...ys) + arrowPad;
+  const sx = (W - 90) / (x1 - x0), sy = (H - 70) / y1;
+  const s = Math.min(sx, sy);
+  const ox = (W - (x1 - x0)*s) / 2 - x0*s, oy = H - 45;
+  const X = x => ox + x*s, Y = y => oy - y*s;
+  // load line (dashed) + arrow
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = '#4fa3ff'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(X(P.load_x), Y(0)); ctx.lineTo(X(P.load_x), Y(y1 - 0.26*y1)); ctx.stroke();
+  ctx.setLineDash([]);
+  const ax = X(P.load_x), ayTip = Y(y1 - 0.26*y1);
+  ctx.fillStyle = '#4fa3ff';
+  ctx.beginPath(); ctx.moveTo(ax, ayTip - 12); ctx.lineTo(ax - 5, ayTip + 2); ctx.lineTo(ax + 5, ayTip + 2); ctx.closePath(); ctx.fill();
+  ctx.font = '12px Segoe UI'; ctx.fillStyle = '#4fa3ff';
+  ctx.fillText(`Vy = ${P.Vy} N`, ax + 7, ayTip + 4);
+  // walls coloured by |q|
+  const sh = R.sh;
+  for (let e = 0; e < R.G.E.length; e++) {
+    const [x1e, y1e, x2e, y2e] = R.G.E[e];
+    const qmid = (sh.q1[e] + sh.q2[e]) / 2;
+    const cv = Math.abs(qmid) / Math.max(R.qmax, 1e-12);
+    ctx.strokeStyle = P.Vy === 0 ? '#7a86a8' : flowColor(cv);
+    ctx.lineWidth = 1.6 + 6.5*cv;
+    ctx.beginPath(); ctx.moveTo(X(x1e), Y(y1e)); ctx.lineTo(X(x2e), Y(y2e)); ctx.stroke();
+    // direction arrow at mid-wall
+    const mx = (x1e + x2e)/2, my = (y1e + y2e)/2;
+    const dx = (x2e - x1e), dy = (y2e - y1e), Ln = Math.hypot(dx, dy);
+    const sg = qmid >= 0 ? 1 : -1;
+    const ux = dx/Ln*sg, uy = dy/Ln*sg;
+    const px = X(mx), py = Y(my), al = 5 + 4*cv;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    ctx.moveTo(px + ux*al, py - uy*al);
+    ctx.lineTo(px + uy*al*0.55, py + ux*al*0.55);
+    ctx.lineTo(px - uy*al*0.55, py - ux*al*0.55);
+    ctx.closePath(); ctx.fill();
+  }
+  // seam hinges
+  ctx.fillStyle = '#f6ad55';
+  for (let i = 0; i < P.n_cells; i++) {
+    const [sxw, syw] = R.G.nodes[2*P.n_cells + 2 + i];
+    ctx.beginPath(); ctx.arc(X(sxw), Y(syw), 3.2, 0, 2*Math.PI); ctx.fill();
+  }
+  // centroid marker (+)
+  const cx = X(R.SP.xbar), cy = Y(R.SP.ybar);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(cx-7, cy); ctx.lineTo(cx+7, cy); ctx.moveTo(cx, cy-7); ctx.lineTo(cx, cy+7); ctx.stroke();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx-7, cy); ctx.lineTo(cx+7, cy); ctx.moveTo(cx, cy-7); ctx.lineTo(cx, cy+7); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Segoe UI';
+  ctx.fillText('C', cx + 9, cy - 8);
+  // shear centre marker (diamond)
+  const dx0 = X(R.SC.x), dy0 = Y(R.SC.y);
+  ctx.save(); ctx.translate(dx0, dy0); ctx.rotate(Math.PI/4);
+  if (state.hl === 'sc') { ctx.strokeStyle = '#68d391'; ctx.lineWidth = 2; ctx.strokeRect(-11, -11, 22, 22); }
+  ctx.fillStyle = '#68d391'; ctx.fillRect(-6, -6, 12, 12);
+  ctx.strokeStyle = '#0b2a18'; ctx.lineWidth = 1.5; ctx.strokeRect(-6, -6, 12, 12);
+  ctx.restore();
+  ctx.fillStyle = '#68d391'; ctx.font = 'bold 12px Segoe UI';
+  ctx.fillText('SC', dx0 + 10, dy0 - 8);
+  // eccentricity brace
+  if (Math.abs(R.e_load) > 1e-4) {
+    const yb = Y(-0.055*y1);
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = '#f6ad55'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(X(R.SC.x), yb); ctx.lineTo(X(P.load_x), yb); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#f6ad55'; ctx.font = '11px Segoe UI';
+    const midx = (X(R.SC.x) + X(P.load_x)) / 2;
+    ctx.fillText(`e = ${(R.e_load*1e3).toFixed(1)} mm`, midx - 24, yb - 5);
+  }
+  // title
+  ctx.fillStyle = '#93a0bd'; ctx.font = '12.5px Segoe UI';
+  ctx.fillText(`θ = ${state.theta.toFixed(1)}°   Δ = ${(R.G.seamLift*1e3).toFixed(1)} mm   N = ${P.n_cells} cells   γ = ${P.seam_pos.toFixed(2)}`, 12, 20);
+  if (state.hl === 'flow') {
+    ctx.fillStyle = '#4fd1c5'; ctx.font = 'bold 12.5px Segoe UI';
+    ctx.fillText('colours = shear flow q(s) — red carries the most load', 12, 40);
+  }
+}
+
+/* ---------------- sweep + charts ---------------- */
+function computeSweep(P) {
+  const rows = [];
+  for (let th = 0; th <= 90; th += 1) {
+    const G = kirigamiGeometry(P, th);
+    const SP = sectionProperties(G.E);
+    const SC = shearCenter(G, SP, Math.abs(P.Vy) + 1e-12);
+    const br = bredtTorsion(G, SP, P);
+    const e = P.load_x - SC.x, Tq = P.Vy*e, tw = Tq/br.Kt;
+    rows.push({ th, xbar: SP.xbar, ybar: SP.ybar, xSC: SC.x, ySC: SC.y, J: br.J, Kt: br.Kt, e, Tq, twist: tw });
+  }
+  return rows;
+}
+
+function drawChart(canvas, series, opts) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const mL = 56, mR = opts.right ? 56 : 18, mT = 14, mB = 34;
+  const pw = W - mL - mR, ph = H - mT - mB;
+  const x0 = opts.xMin, x1 = opts.xMax;
+  const leftSeries  = series.filter(s => s.axis !== 'r');
+  const rightSeries = series.filter(s => s.axis === 'r');
+  const rangeOf = ss => {
+    let lo = Infinity, hi = -Infinity;
+    for (const s of ss) for (const [, y] of s.data) { lo = Math.min(lo, y); hi = Math.max(hi, y); }
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    if (hi - lo < 1e-12) { hi += 1; lo -= 1; }
+    const pad = (hi - lo)*0.12; return [lo - pad, hi + pad];
+  };
+  const [l0, l1] = rangeOf(leftSeries.length ? leftSeries : series);
+  const [r0, r1] = opts.right ? rangeOf(rightSeries) : [0, 1];
+  const X = x => mL + (x - x0)/(x1 - x0)*pw;
+  const Yl = y => mT + (1 - (y - l0)/(l1 - l0))*ph;
+  const Yr = y => mT + (1 - (y - r0)/(r1 - r0))*ph;
+  const niceTicks = (a, b) => {
+    const span = b - a, raw = span/5, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw/mag;
+    const step = (norm < 1.5 ? 1 : norm < 3.5 ? 2 : norm < 7.5 ? 5 : 10)*mag;
+    const t = []; for (let v = Math.ceil(a/step)*step; v <= b + 1e-12; v += step) t.push(v);
+    return t;
+  };
+  ctx.font = '11px Segoe UI'; ctx.fillStyle = '#93a0bd';
+  for (const v of niceTicks(l0, l1)) {
+    ctx.strokeStyle = '#223052'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(mL, Yl(v)); ctx.lineTo(W - mR, Yl(v)); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fmtTick(v), mL - 6, Yl(v) + 3);
+  }
+  if (opts.right) {
+    ctx.textAlign = 'left';
+    for (const v of niceTicks(r0, r1)) { ctx.fillStyle = '#c084fc'; ctx.fillText(fmtTick(v), W - mR + 6, Yr(v) + 3); }
+  }
+  ctx.textAlign = 'center';
+  for (const v of niceTicks(x0, x1)) ctx.fillText(String(Math.round(v)), X(v), H - mB + 16);
+  ctx.fillText(opts.xLabel, mL + pw/2, H - 4);
+  ctx.save(); ctx.translate(13, mT + ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = '#93a0bd'; ctx.fillText(opts.yLabel, 0, 0); ctx.restore();
+  if (opts.right) {
+    ctx.save(); ctx.translate(W - 4, mT + ph/2); ctx.rotate(Math.PI/2);
+    ctx.fillStyle = '#c084fc'; ctx.fillText(opts.yLabelR, 0, 0); ctx.restore();
+  }
+  const line = (data, ymap, color, dash, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width || 1.8; ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    data.forEach(([x, y], i) => i ? ctx.lineTo(X(x), ymap(y)) : ctx.moveTo(X(x), ymap(y)));
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  for (const s of series) {
+    const ym = s.axis === 'r' ? Yr : Yl;
+    line(s.data, ym, s.color, s.dash, s.width);
+  }
+  // current-θ marker
+  const cx = X(state.theta);
+  ctx.strokeStyle = '#e8edf7'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(cx, mT); ctx.lineTo(cx, mT + ph); ctx.stroke(); ctx.setLineDash([]);
+  for (const s of series) {
+    const ym = s.axis === 'r' ? Yr : Yl;
+    let best = s.data[0];
+    for (const p of s.data) if (Math.abs(p[0] - state.theta) < Math.abs(best[0] - state.theta)) best = p;
+    ctx.fillStyle = s.color;
+    ctx.beginPath(); ctx.arc(X(best[0]), ym(best[1]), 4, 0, 2*Math.PI); ctx.fill();
+  }
+  // legend
+  ctx.textAlign = 'left'; ctx.font = '11.5px Segoe UI';
+  let lx = mL + 8;
+  for (const s of series) {
+    ctx.fillStyle = s.color; ctx.fillRect(lx, mT + 4, 14, 3);
+    ctx.fillStyle = '#c9d6f2'; ctx.fillText(s.label, lx + 18, mT + 9);
+    lx += 22 + ctx.measureText(s.label).width + 14;
+  }
+}
+function fmtTick(v) {
+  const a = Math.abs(v);
+  if (a >= 1000) return (v/1000).toFixed(a % 1000 ? 1 : 0) + 'k';
+  if (a >= 10) return v.toFixed(0);
+  if (a >= 1) return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+function redrawAll() {
+  const R = analyze(state.P, state.theta);
+  refreshOutputs(R);
+  drawSection(R);
+  if (!state.sweep) state.sweep = computeSweep(state.P);
+  drawChart($('cvMig'), [
+    { label: 'x_SC(θ)',  color: '#4fd1c5', data: state.sweep.map(r => [r.th, mm(r.xSC)]) },
+    { label: 'centroid x̄(θ)', color: '#8b97b5', dash: [6, 4], data: state.sweep.map(r => [r.th, mm(r.xbar)]) }
+  ], { xMin: 0, xMax: 90, xLabel: 'θ [deg]', yLabel: 'x position [mm]' });
+  drawChart($('cvCouple'), [
+    { label: 'torque T = V·e', color: '#f6ad55', data: state.sweep.map(r => [r.th, r.Tq]) },
+    { label: 'twist θ_t', color: '#c084fc', data: state.sweep.map(r => [r.th, r.twist*180/Math.PI]), axis: 'r' }
+  ], { xMin: 0, xMax: 90, xLabel: 'θ [deg]', yLabel: 'T [N·m]', yLabelR: 'twist [deg]', right: true });
+  buildTable();
+  return R;
+}
+
+/* ---------------- results table ---------------- */
+function buildTable() {
+  const step = 15;
+  const thetas = [];
+  for (let t = 0; t <= 90; t += step) thetas.push(t);
+  if (thetas[thetas.length-1] !== 90) thetas.push(90);
+  let html = `<table><tr><th>θ [deg]</th><th>x̄ [mm]</th><th>ȳ [mm]</th><th>Ix [cm⁴]</th><th>Iy [cm⁴]</th><th>Ixy [cm⁴]</th>
+    <th>x_SC [mm]</th><th>y_SC [mm]</th><th>e [mm]</th><th>T [N·m]</th><th>Kt [N·m/rad]</th><th>twist [deg]</th></tr>`;
+  for (const t of thetas) {
+    const G = kirigamiGeometry(state.P, t);
+    const SP = sectionProperties(G.E);
+    const SC = shearCenter(G, SP, Math.abs(state.P.Vy) + 1e-12);
+    const br = bredtTorsion(G, SP, state.P);
+    const e = state.P.load_x - SC.x, Tq = state.P.Vy*e, tw = Tq/br.Kt*180/Math.PI;
+    html += `<tr class="${Math.abs(t - state.theta) < 0.26 ? 'cur' : ''}"><td>${t}</td>
+      <td>${mm(SP.xbar).toFixed(2)}</td><td>${mm(SP.ybar).toFixed(2)}</td>
+      <td>${cm4(SP.Ix).toFixed(3)}</td><td>${cm4(SP.Iy).toFixed(3)}</td><td>${cm4(SP.Ixy).toFixed(3)}</td>
+      <td>${mm(SC.x).toFixed(2)}</td><td>${mm(SC.y).toFixed(2)}</td><td>${mm(e).toFixed(2)}</td>
+      <td>${Tq.toFixed(2)}</td><td>${br.Kt.toExponential(3)}</td><td>${tw.toFixed(3)}</td></tr>`;
+  }
+  html += '</table>';
+  $('tblWrap').innerHTML = html;
+}
+
+$('btnCsv').onclick = () => {
+  const step = 15;
+  const head = 'theta_deg,xbar_m,ybar_m,Ix_m4,Iy_m4,Ixy_m4,xSC_m,ySC_m,ex_m,ey_m,J_m4,Kt_Nm_per_rad,Torque_Nm,twist_deg';
+  const lines = [head];
+  for (let t = 0; t <= 90; t += step) {
+    const G = kirigamiGeometry(state.P, t), SP = sectionProperties(G.E);
+    const SC = shearCenter(G, SP, Math.abs(state.P.Vy) + 1e-12);
+    const br = bredtTorsion(G, SP, state.P);
+    const e = state.P.load_x - SC.x, Tq = state.P.Vy*e;
+    lines.push([t, SP.xbar, SP.ybar, SP.Ix, SP.Iy, SP.Ixy, SC.x, SC.y, SC.ex, SC.ey,
+                br.J, br.Kt, Tq, Tq/br.Kt].map(v => (+v).toPrecision(10)).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'kirigami_demo_results.csv'; a.click();
+};
+
+/* ---------------- self-test tab ---------------- */
+function runSelfTest() {
+  const res = selfTest();
+  const nFail = res.filter(r => !r.pass).length;
+  let html = '<table><tr><th>check</th><th>error</th><th>tolerance</th><th>result</th></tr>';
+  for (const r of res) {
+    html += `<tr><td style="text-align:left">${r.name}</td><td>${r.err.toExponential(2)}</td><td>${r.tol.toExponential(0)}</td>
+      <td class="${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</td></tr>`;
+  }
+  html += '</table>';
+  $('stWrap').innerHTML = html;
+  $('stSummary').innerHTML = nFail === 0
+    ? '<span class="pass">ALL ' + res.length + ' CHECKS PASSED — solver verified ✔</span>'
+    : `<span class="fail">${nFail} CHECK(S) FAILED</span>`;
+  return res;
+}
+
+/* ---------------- embedded guide (condensed GUIDE.md) ---------------- */
+$('guideContent').innerHTML = `
+<h4>What am I looking at?</h4>
+<p>The cross-section of a <b>morphing aircraft wing box</b> ("wingbox"). Its top skin is cut into panels
+(a "kirigami" cut, like paper-craft). As the morphing angle θ grows, the panels hinge up at each
+<b>seam</b>, the section gets deeper and less symmetric — and the <b>shear centre migrates</b>.
+This page runs the <i>exact same solver</i> as the MATLAB project files, re-written in JavaScript.</p>
+<h4>The 30-second physics</h4>
+<p>1) The seam lift is <code>Δ = (c/N)·sin θ</code> — that single motion reshapes everything.<br>
+2) For each θ the code computes the section's area, centroid and inertias (thin-strip integrals).<br>
+3) A vertical shear force V is spread through the walls as <b>shear flow q(s)</b> (the colours).<br>
+4) The <b>shear centre</b> is the point where V may act without twisting the section (zero-twist condition).<br>
+5) Because the deployed section is asymmetric (γ ≠ 0.5), the shear centre <b>migrates</b> with θ.<br>
+6) A load applied on the fixed blue line misses the moving shear centre by <code>e</code>, creating
+torque <code>T = V·e</code> and twist <code>θt = T/Kt</code> — the bending–torsion coupling.</p>
+<h4>Try this first (2 minutes)</h4>
+<li>Drag <b>θ</b> slowly: watch the green SC diamond slide left while the white centroid barely moves — that gap is the whole project.</li>
+<li>Set <b>γ = 0.50</b>: the section becomes symmetric, Ixy → 0 and the migration stops (SC glued to the centroid line). Set it back to 0.40.</li>
+<li>Press <b>▶ Deploy animation</b> and just watch the colours: the load path re-routes through the lifted seams.</li>
+<li>Open <b>✅ Self-test</b>: the same six analytic checks as MATLAB <code>self_test.m</code>, all PASS.</li>
+<li>Open <b>📋 Results table</b> and compare a row with <code>kirigami_results.csv</code> from MATLAB — they match.</li>
+<h4>Where each number comes from (MATLAB mapping)</h4>
+<li>Geometry &amp; seams → <code>kirigami_geometry.m</code> · Section properties → <code>section_properties.m</code></li>
+<li>Shear-flow colours → <code>shear_flow.m</code> (slit → tree walk → cell compatibility)</li>
+<li>SC diamond → <code>shear_center.m</code> (zero-twist condition, two unit load cases)</li>
+<li>Kt and twist → <code>bredt_torsion.m</code> (multi-cell Bredt–Batho) · sweep/curves → <code>morphing_simulation.m</code></li>
+<li>Report figures, animation, UI, ANSYS export → <code>visualization.m</code>, <code>kirigami_animation.m</code>, <code>kirigami_app.m</code>, <code>validation_ansys.m</code></li>
+<h4>Honest limitations (say these in the presentation)</h4>
+<li>Thin-walled idealisation, linear elasticity, rigid contour (no shear lag).</li>
+<li>Uniform (Saint-Venant) torsion only — warping ignored, which matters at large θ.</li>
+<li>Seam-lift is a <i>simplified</i> stand-in for the real kirigami rotating-flap kinematics.</li>
+<p>Full derivation of every equation: <b>MODEL_MATH.md</b>. Full plain-language walkthrough: <b>GUIDE.md</b>.</p>`;
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  $('tab-' + b.dataset.tab).classList.add('on');
+  if (b.dataset.tab === 'test') runSelfTest();
+  redrawAll();
+});
+function switchTab(name) {
+  document.querySelector(`nav button[data-tab="${name}"]`).click();
+}
+
+/* ---------------- inputs ---------------- */
+function bindSlider(id, key, fmt, isTheta, toSI) {
+  const el = $('in_' + id), lab = $('v_' + id);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    lab.textContent = fmt ? fmt(v) : v;
+    if (isTheta) state.theta = v;
+    else state.P[key] = toSI ? v*1e-3 : v;
+    if (!isTheta && key === 'chord') {
+      const xl = $('in_xl');
+      if (parseFloat(xl.value) > state.P.chord) { xl.value = state.P.chord; $('v_xl').textContent = (+xl.value).toFixed(3); state.P.load_x = state.P.chord; }
+    }
+    if (!isTheta) state.sweep = null;   // non-θ change ⇒ re-sweep
+    redrawAll();
+  });
+}
+bindSlider('theta', null, v => v.toFixed(1), true);
+bindSlider('n',  'n_cells',  v => v.toFixed(0));
+bindSlider('gam','seam_pos', v => v.toFixed(2));
+bindSlider('c',  'chord',    v => v.toFixed(2));
+bindSlider('h',  'height',   v => v.toFixed(3));
+bindSlider('tu', 't_up',     v => v.toFixed(1), false, true);
+bindSlider('tl', 't_lo',     v => v.toFixed(1), false, true);
+bindSlider('tw', 't_web',    v => v.toFixed(1), false, true);
+bindSlider('Vy', 'Vy',       v => v.toFixed(0));
+bindSlider('xl', 'load_x',   v => v.toFixed(3));
+
+document.addEventListener('keydown', ev => {
+  if (ev.target.tagName === 'INPUT') return;
+  if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+    const d = (ev.key === 'ArrowRight' ? 1 : -1) * (ev.shiftKey ? 5 : 1);
+    state.theta = Math.min(90, Math.max(0, state.theta + d));
+    $('in_theta').value = state.theta; $('v_theta').textContent = state.theta.toFixed(1);
+    redrawAll();
+  }
+});
+
+$('btnReset').onclick = () => {
+  state.P = { ...DEFAULTS }; state.theta = 45; state.playing = false;
+  $('btnPlay').textContent = '▶ Deploy animation';
+  const set = (id, v, lab) => { $('in_' + id).value = v; $('v_' + id).textContent = lab; };
+  set('theta', 45, '45.0'); set('n', 4, '4'); set('gam', 0.40, '0.40');
+  set('c', 0.30, '0.30'); set('h', 0.08, '0.080'); set('tu', 1.0, '1.0');
+  set('tl', 1.0, '1.0'); set('tw', 1.2, '1.2'); set('Vy', 1000, '1000');
+  set('xl', 0.30, '0.300');
+  state.sweep = null;
+  redrawAll();
+};
+
+/* ---------------- animation ---------------- */
+let rafId = null, dir = 1, lastT = 0;
+function tick(ts) {
+  if (!state.playing) return;
+  const dt = Math.min(50, ts - lastT); lastT = ts;
+  state.theta += dir * dt * 0.045;             // ≈ 45°/s
+  if (state.theta >= 90) { state.theta = 90; dir = -1; }
+  if (state.theta <= 0)  { state.theta = 0;  dir = 1; }
+  $('in_theta').value = state.theta;
+  $('v_theta').textContent = state.theta.toFixed(1);
+  redrawAll();
+  rafId = requestAnimationFrame(tick);
+}
+$('btnPlay').onclick = () => {
+  state.playing = !state.playing;
+  $('btnPlay').textContent = state.playing ? '⏸ Pause' : '▶ Deploy animation';
+  if (state.playing) { lastT = performance.now(); rafId = requestAnimationFrame(tick); }
+  else cancelAnimationFrame(rafId);
+};
+
+/* ---------------- guided tour ---------------- */
+const TOUR = [
+  { title: 'Welcome — what is this? (1 of 10)',
+    html: `<p>You are looking at the <b>cross-section of a morphing aircraft wing box</b>. The project it belongs to studies one question:</p>
+           <p style="color:#4fd1c5"><i>When the kirigami skin deploys, where does the shear centre go — and what does that do to the wing?</i></p>
+           <p>Take the 2-minute tour and every button and number will make sense. Click <b>Next</b>.</p>`,
+    act: () => { setTheta(0); } },
+  { title: 'The parts of the section',
+    html: `<p><b>Orange dots</b> = seam hinges · <b>bottom line</b> = lower skin · <b>vertical walls</b> = webs · <b>top zig-zag</b> = the kirigami top skin, one hinged "roof" per cell.</p>
+           <p>At θ = 0° the roof is flat: a plain rectangular N-cell box. Nothing interesting yet.</p>`,
+    act: () => setTheta(0) },
+  { title: 'The morphing angle θ — the input that drives everything',
+    html: `<p>The single degree of freedom. The seams lift by</p>
+           <div class="formula">Δ = (c/N) · sin θ</div>
+           <p>θ = 0° closed box → θ = 90° fully deployed. Drag the big <b>θ slider</b> yourself, or use ← → keys (Shift = ×5).</p>`,
+    act: () => setTheta(60) },
+  { title: 'The centroid C (white +)',
+    html: `<p>The <b>balance point of the material</b>. As seams lift, material moves up, so ȳ grows and x̄ drifts slightly.</p>
+           <p>It is computed by simple weighted averages (Σ t·L·x / A) — file <code>section_properties.m</code>.</p>`,
+    act: () => { setTheta(30); state.hl = 'centroid'; } },
+  { title: 'Shear flow q(s) — the colours',
+    html: `<p>Cut the wing with a 1000 N vertical force. That force must flow through the walls to the root — the <b>colour and arrows show that flow in N/m</b> (red = heavily loaded, blue = quiet).</p>
+           <p>Watch the load path <i>re-route through the lifted seams</i> as θ grows. File: <code>shear_flow.m</code>.</p>`,
+    act: () => { setTheta(45); state.hl = 'flow'; } },
+  { title: 'The shear centre SC (green ◆)',
+    html: `<p><b>The point where the resultant force can act while producing ZERO twist.</b> Found by requiring the moment of the internal shear flows about it to vanish (two unit load cases, superposition).</p>
+           <p>For a symmetric box it sits on the symmetry line. Ours is asymmetric (γ = 0.40) — so it sits off-centre. File: <code>shear_center.m</code>.</p>`,
+    act: () => { setTheta(45); state.hl = 'sc'; } },
+  { title: '⭐ The migration — the heart of the project',
+    html: `<p>Drag θ slowly and watch the green ◆ <b>slide along the chord</b> while the white + barely moves. That gap is <b>shear-centre migration</b>.</p>
+           <p>The <b>📈 SC migration</b> tab plots it: cyan = x<sub>SC</sub>(θ), grey dashed = centroid. Now switching you there…</p>`,
+    act: () => { state.hl = 'sc'; setTheta(75); switchTab('mig'); } },
+  { title: 'Bending–torsion coupling — why it matters',
+    html: `<p>The real load acts along the <b>fixed blue line</b> (the spar/actuator line). It misses the moving shear centre by <b>e</b> ⇒ torque</p>
+           <div class="formula">T = V·e,    twist θ_t = T / K_t</div>
+           <p>So bending the wing also <b>twists</b> it — and the amount changes as the skin deploys. That's the coupling in the project title.</p>`,
+    act: () => { switchTab('mig'); setTheta(90); } },
+  { title: 'Trust, but verify — the self-test',
+    html: `<p>Open the <b>✅ Self-test</b> tab: the same six analytic checks as MATLAB's <code>self_test.m</code> (closed-form box properties, equilibrium to 1e-13, textbook C-channel SC, single-cell Bredt, cut-independence).</p>
+           <p><b>All PASS</b> ⇒ this browser demo and the MATLAB code agree with textbook answers. Switching you there…</p>`,
+    act: () => { switchTab('test'); runSelfTest(); } },
+  { title: 'You are ready 🎉',
+    html: `<p>Recap: drag θ · watch SC migrate · colours = shear flow · e creates torque · self-test proves the math.</p>
+           <p><b>For the report:</b> run <code>main</code> in MATLAB for the 11 figures + tables, and read <b>GUIDE.md</b> for a full plain-language walkthrough including a 5-minute presentation script.</p>
+           <p>Press <b>Finish</b> and explore.</p>`,
+    act: () => { state.hl = null; switchTab('mig'); setTheta(45); } }
+];
+let tourIdx = 0;
+function setTheta(v) {
+  state.theta = Math.min(90, Math.max(0, v));
+  $('in_theta').value = state.theta;
+  $('v_theta').textContent = state.theta.toFixed(1);
+  redrawAll();
+}
+function showTourStep(i) {
+  tourIdx = Math.max(0, Math.min(TOUR.length - 1, i));
+  const st = TOUR[tourIdx];
+  $('tourTitle').textContent = st.title;
+  $('tourBody').innerHTML = st.html;
+  $('tourStep').textContent = `step ${tourIdx + 1} / ${TOUR.length}`;
+  $('tourBack').style.visibility = tourIdx === 0 ? 'hidden' : 'visible';
+  $('tourNext').textContent = tourIdx === TOUR.length - 1 ? 'Finish ✓' : 'Next →';
+  st.act();
+}
+$('btnTour').onclick = () => { $('tourWrap').classList.add('on'); showTourStep(0); };
+$('tourNext').onclick = () => {
+  if (tourIdx === TOUR.length - 1) { $('tourWrap').classList.remove('on'); state.hl = null; redrawAll(); }
+  else showTourStep(tourIdx + 1);
+};
+$('tourBack').onclick = () => showTourStep(tourIdx - 1);
+$('tourClose').onclick = () => { $('tourWrap').classList.remove('on'); state.hl = null; redrawAll(); };
+
+/* ---------------- boot ---------------- */
+buildOutputs();
+$('btnSelfTest').onclick = runSelfTest;
+runSelfTest();
+redrawAll();
+window.addEventListener('resize', () => redrawAll());
+</script>
+</body>
+</html>
